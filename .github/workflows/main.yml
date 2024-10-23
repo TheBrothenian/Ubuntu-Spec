@@ -1,11 +1,13 @@
 # .github/workflows/main.yml
-#V2
-name: Deploy Docker with Ansible on Ubuntu
+
+# .github/workflows/main.yml
+
+name: Deploy Docker with Ansible on Ubuntu with Security Checks
 
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy:
@@ -15,11 +17,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # Terraform Security Checks
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
 
+      - name: Install TFLint for Terraform
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+      - name: Install Checkov for Terraform security scan
+        run: |
+          pip install checkov
+
+      - name: Run TFLint (Terraform Linting)
+        run: tflint
+
+      - name: Run Checkov (Terraform Security Scan)
+        run: checkov -d .
+
+      # Set up SSH for Ansible
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
@@ -28,19 +46,27 @@ jobs:
           echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
           ssh-keyscan -H localhost >> ~/.ssh/known_hosts
 
+      # Install Docker
       - name: Install Docker
         run: |
           sudo apt-get update
           sudo apt-get install -y docker.io
           sudo systemctl start docker
 
-      - name: Install Ansible
+      # Install Ansible and ansible-lint
+      - name: Install Ansible and ansible-lint
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
           sudo apt-add-repository --yes --update ppa:ansible/ansible
           sudo apt-get install -y ansible
+          pip install ansible-lint
 
+      # Ansible Security Checks
+      - name: Run ansible-lint (Ansible Playbook Linting)
+        run: ansible-lint playbook.yml
+
+      # Terraform Deployment
       - name: Terraform Init
         run: terraform init
 
