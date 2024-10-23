@@ -1,0 +1,17 @@
+# playbook.yml
+---
+- hosts: ubuntu_ansible
+  become: true
+  tasks:
+    - name: Ensure Python is installed
+      apt:
+        name: python3
+        state: present
+        update_cache: yes
+
+    - name: Install basic utilities
+      apt:
+        name:
+          - curl
+          - git
+        state: present
